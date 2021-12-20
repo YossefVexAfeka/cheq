@@ -1,7 +1,4 @@
 import { parentPort } from 'worker_threads';
-import fs from 'fs';
-import readline from 'readline';
-import events from 'events';
 
 parentPort.on('message', async ({ linesArr, linesCounter, stringToCheck }) => {
 	if (linesCounter === 1000) {
@@ -35,6 +32,6 @@ const matcher = ({ linesArr, linesCounter, stringToCheck }) => {
 		}
 		return finalArr;
 	} catch (e) {
-		console.log(333333333333333333);
+		console.log(e);
 	}
 };
