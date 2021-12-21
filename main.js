@@ -3,6 +3,7 @@ import es from 'event-stream';
 import {StaticPool} from 'node-worker-threads-pool';
 import os from 'os';
 import {aggregateResult} from './aggregator.js'
+import {matcher} from './matcher.js'
 
 const MAX_LINES_PER_WORKER = 1000;
 
@@ -11,7 +12,7 @@ const poolMaker = () => {
     const MAX_CONCURRENT = cpuCount * 2 - 1;
     return new StaticPool({
         size: MAX_CONCURRENT,
-        task: './matcher.js'
+        task: './child.js'
     });
 };
 
@@ -31,7 +32,9 @@ const textSearchPoolHandler = async (es, stringToCheck, finalWordsDic) => {
             }
         })
         .on('end', async () => {
-            console.log(`File downloaded with ${finalWordsDic['Michael'].length} lines`);
+            /** this is for the last round which < 1000 lines */
+            const wordsResultObj = matcher({linesArr, linesCounter, stringToCheck});
+            aggregateResult(finalWordsDic, wordsResultObj)
         })
     return result
 }
@@ -50,32 +53,13 @@ const textSearchHandler = async (url, stringToCheck) => {
     return finalWordsDic;
 };
 
-const printResult = (finalWordsDic) => {
-    const keys = Object.keys(finalWordsDic)
-    keys.forEach(key => {
-        process.stdout.write(`${key} --> [`);
-        for (let i = 0; i < finalWordsDic[key].length; i++) {
-            const obj = finalWordsDic[key][i]
-            process.stdout.write(`[lineOffset=${obj.lineOffset}, charOffset=${obj.charOffset}]`);
-            if (i !== finalWordsDic[key].length - 1) {
-                process.stdout.write(`, `);
-            }
-        }
-        process.stdout.write(`]\n`);
-    })
-}
 const stringInTextSearch = async (url, stringToCheck) => {
-    const arrToCheck = stringToCheck.split(',');
-    const finalWordsDic = await textSearchHandler(url, arrToCheck);
-    printResult(finalWordsDic)
-    return finalWordsDic
+    return await new Promise(async (resolve, reject)=>{
+        const arrToCheck = stringToCheck.split(',');
+        const finalWordsDic = await textSearchHandler(url, arrToCheck);
+        resolve(finalWordsDic);
+    })
+
 };
 
-const s = `James,John,Robert,Michael,William,David,Richard,Charles,Joseph,Thomas,Christopher,Dani
-el,Paul,Mark,Donald,George,Kenneth,Steven,Edward,Brian,Ronald,Anthony,Kevin,Jason,Matt
-hew,Gary,Timothy,Jose,Larry,Jeffrey,Frank,Scott,Eric,Stephen,Andrew,Raymond,Gregory,Jo
-shua,Jerry,Dennis,Walter,Patrick,Peter,Harold,Douglas,Henry,Carl,Arthur,Ryan,Roger`;
-
-const URL = 'http://norvig.com/big.txt';
-
-stringInTextSearch(URL, s);
+export {stringInTextSearch}
